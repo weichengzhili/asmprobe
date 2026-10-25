@@ -1,0 +1,1 @@
+// 仅：解析 CLI → 初始化 tracing → 调用 lib

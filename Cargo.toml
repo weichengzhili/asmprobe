@@ -1,0 +1,13 @@
+[package]
+name = "asmprobe"
+version = "0.1.0"
+edition = "2024"
+description = "Industrial-grade terminal client for inspecting compiler output from godbolt.org or local toolchains (C, C++, Rust)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/weichengzhili/asmprobe"
+keywords = ["assembly", "compiler", "godbolt", "cli", "disassembly"]
+categories = ["command-line-utilities", "development-tools::build-utils"]
+
+[[bin]]
+name = "asmprobe"
+path = "src/main.rs"
