@@ -1,7 +1,8 @@
 pub mod args;
 pub mod commands;
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use std::io;
 use std::path::PathBuf;
 
 use crate::cli::args::{
@@ -12,8 +13,9 @@ use crate::config::{BackendChoice, OutputFormat};
 #[derive(Debug, Parser)]
 #[command(name = "asmprobe", version, about = "Inspect compiler assembly output (local or godbolt.org)", long_about = None)]
 pub struct Cli {
+    /// 省略子命令时打印帮助并成功退出（退出码 0）
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 
     /// 选择后端：remote(godbolt) 或 local
     #[arg(long, global = true, value_enum)]
@@ -40,6 +42,8 @@ pub enum Commands {
     ListLangs,
     /// 列出某语言可用编译器
     ListCompilers(ListCompilersArgs),
+    /// 进入交互式命令循环
+    Repl,
     /// 读取/写入配置
     #[command(subcommand)]
     Config(ConfigArgs),
@@ -52,5 +56,10 @@ impl Cli {
 
     pub fn backend_choice(&self) -> Option<BackendChoice> {
         self.backend.map(Into::into)
+    }
+
+    /// 把短帮助写进 stdout（与 `--help` 同一份内容，交给 clap 处理着色/换行）。
+    pub fn print_help() -> io::Result<()> {
+        Cli::command().print_help()
     }
 }

@@ -66,7 +66,7 @@ config/ · output/ · observability/  为横切层，被上层引用，彼此不
 | 项 | 内容 |
 | :--- | :--- |
 | **职责** | 定义 `Cli`（clap derive 根结构）、全局参数（`--base-url`、`--log-level`、`--config`、`--format`）、`Commands` 枚举。 |
-| **公开接口** | `pub struct Cli { command: Commands, base_url: Option<String>, log_level: String, format: OutputFormat, config: Option<PathBuf> }`<br>`pub enum Commands { Compile(CompileArgs), ListLangs, ListCompilers(ListCompilersArgs), Config(ConfigArgs) }` |
+| **公开接口** | `pub struct Cli { command: Option<Commands>, backend: Option<BackendChoiceArg>, log_level: String, format: OutputFormatArg, config: Option<PathBuf> }`<br>`pub enum Commands { Compile(CompileArgs), ListLangs, ListCompilers(ListCompilersArgs), Repl, Config(ConfigArgs) }` |
 | **依赖** | `clap`、`cli::args`、`cli::commands`。 |
 | **设计约束** | 只做解析与类型化，不执行任何业务；全局参数通过 `#[arg(global = true)]` 保证子命令可用；所有 env 变量统一 `ASMPROBE_*` 前缀。 |
 
@@ -123,6 +123,15 @@ config/ · output/ · observability/  为横切层，被上层引用，彼此不
 | **公开接口** | `pub async fn execute(args: ConfigArgs, cfg: &mut Config) -> Result<(), AppError>` |
 | **依赖** | `config::{schema, paths}`、`directories`。 |
 | **设计约束** | `set` 写回前做 schema 校验并原子写入（临时文件 + rename）；禁止写入未知 key。 |
+
+### `src/cli/commands/repl.rs`
+
+| 项 | 内容 |
+| :--- | :--- |
+| **职责** | 交互式命令循环：逐行读取 → 切分 → `Cli::try_parse_from` → `dispatch`。 |
+| **公开接口** | `pub async fn execute(backend: &dyn CompilerBackend, cfg: &mut Config) -> Result<(), AppError>`<br>`fn split(line: &str) -> Vec<String>`（私有，带单元测试） |
+| **依赖** | `clap`、`std::io`、`cli::commands::dispatch`。 |
+| **设计约束** | 整个会话只加载一次配置、只创建一个后端；提示符与提示语全部走 `stderr`，`stdout` 仍只承载命令结果；单行解析/执行失败只报错不退出；内置 `help` / `exit`；不引入新的第三方依赖（自带极简 shell 切分，支持引号与 `\` 转义）。 |
 
 ---
 
@@ -182,7 +191,7 @@ config/ · output/ · observability/  为横切层，被上层引用，彼此不
 | **依赖** | `domain::Language`、`tokio::process`。 |
 | **设计约束** | C/C++ 用 `-S -o <asm>`；Rust 用 `--emit=asm -o <asm>`；`--intel-syntax` 时 C/C++ 追加 `-masm=intel`、Rust 追加 `-C llvm-args=-x86-asm-syntax=intel`；用户参数追加在默认参数之后，保证可覆盖。 |
 
-### `src/backend/local/temp.rs`
+### `src/backend/local/temp_workspace.rs`
 
 | 项 | 内容 |
 | :--- | :--- |
@@ -420,13 +429,14 @@ config/ · output/ · observability/  为横切层，被上层引用，彼此不
 | `cli/commands/list_langs.rs` | 列语言 | `execute()` |
 | `cli/commands/list_compilers.rs` | 列编译器 | `execute()` |
 | `cli/commands/config.rs` | 配置读写 | `execute()` |
+| `cli/commands/repl.rs` | 交互式命令循环 | `execute()`, `split()` |
 | `backend/mod.rs` | 后端层聚合 | re-exports |
 | `backend/traits.rs` | 编译契约 | `CompilerBackend`, `BackendError` |
 | `backend/factory.rs` | 后端构造 | `create()` |
 | `backend/local/mod.rs` | 本地后端实现 | `LocalBackend` |
 | `backend/local/resolver.rs` | 编译器探测与版本 | `CompilerResolver`, `SystemResolver` |
 | `backend/local/command.rs` | 命令行构造 | `build()` |
-| `backend/local/temp.rs` | 临时文件生命周期 | `TempWorkspace` |
+| `backend/local/temp_workspace.rs` | 临时文件生命周期 | `TempWorkspace` |
 | `backend/remote/mod.rs` | 远程后端实现 | `GodboltBackend` |
 | `backend/remote/client.rs` | HTTP 封装 | `GodboltClient` |
 | `backend/remote/dto.rs` | API DTO 与转换 | `CompileRequest/Response` |
@@ -463,13 +473,15 @@ config/ · output/ · observability/  为横切层，被上层引用，彼此不
 
 该表由 `tests/cli_integration.rs` 逐项断言，确保脚本集成的稳定性。
 
+补充约定：**不带任何子命令运行（`asmprobe`）视为“打印帮助”而非用法错误** —— 帮助内容走 `stdout`，退出码 `0`（`Cli::command: Option<Commands>` + `run` 内提前返回）。只有出现无法识别的子命令或非法参数时才由 clap 返回 `2`。
+
 ---
 
 ## 附录 B：stdout / stderr 契约
 
 | 流 | 内容 | 禁止内容 |
 | :--- | :--- | :--- |
-| `stdout` | 汇编文本；`--format json` 时的机器可读 JSON（语言列表、编译器列表、编译结果） | 日志、诊断、进度条 |
-| `stderr` | `tracing` 日志、编译器诊断、用户错误提示、`indicatif` 进度 | 汇编、JSON 结果 |
+| `stdout` | 汇编文本；`--format json` 时的机器可读 JSON（语言列表、编译器列表、编译结果）；`--help` 与无子命令时的帮助文本 | 日志、诊断、进度条 |
+| `stderr` | `tracing` 日志、编译器诊断、用户错误提示、`indicatif` 进度、REPL 提示符/提示语 | 汇编、JSON 结果 |
 
 该契约由 `tests/cli_integration.rs` 中 `stdout_is_asm_only` 与 `stderr_contains_diagnostics` 两个测试断言。

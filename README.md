@@ -15,6 +15,7 @@
 | **多语言** | `c` / `cpp` / `rust`，按扩展名自动推断；也可用 `--lang` 显式指定（如 `--stdin` 时必填）。 |
 | **stdin 管道** | `--stdin` 从标准输入读源码，配合 `--lang` 使用，适合与其他命令管道串联。 |
 | **Intel 语法** | `--intel` 让 C/C++ 用 `-masm=intel`、Rust 用 `-C llvm-args=-x86-asm-syntax=intel` 输出 Intel 语法汇编。 |
+| **交互式模式** | 不带子命令直接运行（终端里）或 `asmprobe repl` 进入交互循环：`compile a.c --intel`、`list-langs`、`config get ...` 直接敲，`help` 看用法，`exit` 退出。 |
 | **列出语言 / 编译器** | `list-langs` 列出支持的语言；`list-compilers <lang>` 列出本地（PATH 中探测到的）或远程（godbolt）可用编译器。 |
 | **三层配置合并** | 优先级：**CLI 参数/环境变量 > 配置文件 > 内置默认**；支持 `config get/set/path/edit`。 |
 | **双输出格式** | `--format text`（默认，人读）/ `--format json`（机器读，含 `source`/`asm`/`diagnostics`/`exit_code`）/ `--format html`（源码-汇编对照页）。 |

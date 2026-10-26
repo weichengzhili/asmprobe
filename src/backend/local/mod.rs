@@ -13,7 +13,7 @@ use crate::domain::{
 
 pub mod command;
 pub mod resolver;
-pub mod temp;
+pub mod temp_workspace;
 
 pub use resolver::{CompilerResolver, SystemResolver};
 
@@ -49,7 +49,7 @@ impl CompilerBackend for LocalBackend {
     ) -> Result<CompileOutput, BackendError> {
         let path = resolve_compiler(&self.local_cfg, &self.resolver, &spec.id_or_path)?;
 
-        let ws = temp::TempWorkspace::new(spec.lang, &src.text)?;
+        let ws = temp_workspace::TempWorkspace::new(spec.lang, &src.text)?;
 
         let mut cmd = command::build(
             spec.lang,
