@@ -1,0 +1,9 @@
+# 本机 Windows 构建配置（无需额外安装链接器）：
+# - 固定 gnu 目标，用已安装的 MinGW-w64 `gcc` 作链接器（可找到 ktmw32 等 Windows 导入库）。
+# - 项目路径含非 ASCII 字符时，GNU 工具链（gcc/ld/dlltool）无法处理输出路径，
+#   故将构建产物重定向到 ASCII 路径，避免 "Can't create .lib file" 错误。
+[build]
+target-dir = "F:\\workspace\\os\\tools\\asmprobe"
+
+[target.x86_64-pc-windows-gnu]
+linker = "gcc"

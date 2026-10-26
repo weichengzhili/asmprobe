@@ -11,3 +11,34 @@ categories = ["command-line-utilities", "development-tools::build-utils"]
 [[bin]]
 name = "asmprobe"
 path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "env"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "io-util", "io-std", "time"] }
+thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+directories = "5"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+async-trait = "0.1"
+which = "6"
+regex = "1"
+tempfile = "3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
+which = "6"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[features]
+# 默认只编译本地后端，避免依赖需要 C 工具链的 `ring`（reqwest/rustls）。
+# 想要 godbolt 远程后端时显式开启：cargo build --features remote
+default = []
+remote = ["dep:reqwest"]
+highlight = []
+bench = []
