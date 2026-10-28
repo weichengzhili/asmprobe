@@ -1,8 +1,6 @@
 #[cfg(feature = "remote")]
 use async_trait::async_trait;
 #[cfg(feature = "remote")]
-use crate::backend::remote::client::GodboltClient;
-#[cfg(feature = "remote")]
 use crate::backend::remote::dto::CompileRequest;
 #[cfg(feature = "remote")]
 use crate::backend::traits::{BackendError, CompilerBackend};
@@ -44,17 +42,11 @@ impl CompilerBackend for GodboltBackend {
         src: &SourceCode,
         args: &[String],
     ) -> Result<CompileOutput, BackendError> {
-        let mut req: CompileRequest = src.clone().into();
-        req.user_arguments = args.join(" ");
+        let req = CompileRequest::new(spec.lang, src, args);
         let resp = self.client.compile(&spec.id_or_path, req).await?;
         let mut out: CompileOutput = resp.into();
         out.source = src.text.clone();
-        if out.exit_code != 0 {
-            return Err(BackendError::Compilation {
-                exit_code: out.exit_code,
-                diagnostics: out.diagnostics,
-            });
-        }
+        // 与本地后端一致：成败都由 CompileOutput 承载，是否算错误交给上层决定。
         Ok(out)
     }
 
